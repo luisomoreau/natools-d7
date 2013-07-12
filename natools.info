@@ -1,4 +1,4 @@
-name = Na tools
-description = Generic helpers functions, classes and APIs for Drupal 7 websites.
-;helpers
+name = Natools
+description = Generic helpers functions, modules and classes for Drupal 7 websites.
+package = Natools
 core = 7.x
