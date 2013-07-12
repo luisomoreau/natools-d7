@@ -1,0 +1,128 @@
+<?php
+/**
+ * @file natools
+ *
+ * Helpers functions and API for Drupal 7 sites.
+ */
+
+/*===========================
+    HOOKS
+  =========================== */ 
+
+/**
+ * Implements hook_theme()
+ */
+function natools_theme($existing, $type, $theme, $path) {
+  return array(
+    // display an embedded view.
+    'natools_views_embed' => array(
+      'variables' => array(
+        'views_name'       => '', 
+        'views_display_id' => '',
+        'views_args'       => array(),
+        'title'            => '',
+        'title_tag'        => '',
+        'title_class'  => '',
+      ),
+    ),
+  );
+}
+
+/*===========================
+  GLOBAL HELPERS FUNCTIONS
+  =========================== */
+
+/**
+ * Include a file from "libraries" directory.
+ * @param $name
+ */
+function natools_include($name) {
+  $file = DRUPAL_ROOT . '/' . drupal_get_path('module', 'natools') . "/includes/$name";
+  require_once $file;
+}
+
+/**
+ * to use as a "delivery callack" in a hook menu. This is something like "ajax_deliver"
+ * from Drupal 7, without all php framework ajax stuff behind. As ajax_deliver, it offers
+ * a way to know if page is requested by ajax or not.
+ *
+ * If js is not enabled, a normal drupal page will be displayed, fully loading blocks etc...
+ * If ajax sent us a "http_request_sent_by_ajax' variable, we return only result of our menu callback
+ * function, bypassing all drupal page system with all the blocks and heavy stuff.
+ *
+ * Use it typically when you want to write custom js to display (for example) a popup in ajax; rather than using 
+ * drupal 7 ajax API.
+ * 
+ * To let us know if ajax is enabled, this is *developper* responsability to send
+ * a GET $param called "http_request_sent_by_ajax" with value "1"..
+ */
+function natools_ajax_deliver_degradable($page_callback_result) {
+  if (isset($_REQUEST['http_request_sent_by_ajax']) && $_REQUEST['http_request_sent_by_ajax'] == 1) {
+    drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
+    print render($page_callback_result);
+    drupal_exit();
+  }
+  else {
+    return drupal_deliver_html_page($page_callback_result);
+  }
+}
+
+/*===========================
+   OTHER FUNCTIONS
+  =========================== */ 
+
+/**
+ * implements hook_preprocess_hooks()
+ * Prepare variable for theme_na_tootls_views_embed.
+ * @see theme_natools_views_embed()
+ */
+function template_preprocess_natools_views_embed(&$vars) {
+  $view = views_get_view($vars['views_name'], $vars['views_display_id']);
+  if (!$view || !$view->access($vars['views_display_id']) || !views_get_view_result($vars['views_name'], $vars['views_display_id'])) {
+    $vars['view'] = FALSE;
+  }
+  else {
+
+    // if we want no title, we have to put "<none>" has title value
+    if ($vars['title'] == '<none>') {
+      $vars['title'] = '';
+    }
+    // if not, use title asked, or title from view display if nothing was specified.
+    else {
+      $vars['title'] = $vars['title'] ? $vars['title'] : $view->display[$vars['views_display_id']]->display_title;
+    }
+
+    $vars['title_class'] = $vars['title_class'] ? $vars['title_class'] : 'views-embed-title';
+    $vars['title_tag'] = $vars['title_tag'] ? $vars['title_tag'] : 'div';
+    $vars['view'] = $view;
+  }
+}
+
+/**
+ * Display an embedded view, *only* if it has some results. May display views title or
+ * a custom title. Html tags and title classes may be customized.
+ *
+ * @params $vars : an associative array containing :
+ * - views_name (string) : name of the view to fetch
+ * - views_display_id (string) : id of the display to fetch
+ * - views_args (array) : array of arguments to pass to the view.
+ * - title (string) :
+ *     title for the views embedded.
+ *     if empty, will display views title for this display_id.
+ *     if <none>, no title will be displayed
+ * - title_tag (string) : tag to use for title. A div by default
+ * - title_class (string) : class to use for title.
+ *
+ * @see template_preprocess_natools_views_embed()
+ */
+function theme_natools_views_embed($vars) {
+  $out = '';
+  if ($vars['view']) {
+    if ($vars['title']) {
+      $out .= sprintf('<%s class="%s">%s</%s>', $vars['title_tag'], $vars['title_class'], $vars['title'], $vars['title_tag']);
+    }
+    $out .= $vars['view']->preview($vars['views_display_id'], $vars['views_args']);
+  }
+  return $out;
+}
+

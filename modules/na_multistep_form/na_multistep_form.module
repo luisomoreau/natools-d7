@@ -1,0 +1,241 @@
+<?php
+/**
+ * @file
+ *
+ * Display a multistep form using native Drupal form API and $form_state manipulation.
+ * You have to write a separate form for each step, and then call na_multistep_form_get() with
+ * an array $steps, saying which form has to be displayed in which step.
+ *
+ * You also need to specify a "submit_callback" function, this is where you write code to do
+ * something with all collected values.
+ *
+ * Please note that values are not store in $form_state['values'], but are stored separatly for each step
+ * in $form_state['step_informations'][x]['values'] (where x is the index of step).
+ *
+ * What this module does NOT do for the moment :
+ * - ajax from one step to another
+ * - get parameter in url to skip steps : all steps must be filled one by one. This is something thay should not be
+ *   too hard to implements, though.
+ *
+ * Example :
+ *
+ * @code
+ * <?php
+ *
+ * function _rf_cv_form_steps() {
+ *   $path = drupal_get_path('module', 'rf_cv');
+ *   return array(
+ *     1 => array(
+ *       'form'  => 'rf_cv_form_identity',
+ *       'title' => t('Identité (1)'),
+ *       'file'  => "$path/rf_cv.step_1.inc",
+ *      ),
+ *    2 => array(
+ *      'form' => 'rf_cv_form_identity_2',
+ *      'title' => t('Identité (2)'),
+ *      'file'  => "$path/rf_cv.step_2.inc",
+ *     ),
+ *   );
+ * }
+ *
+ * // display our multistep form in a page callback :
+ * function rf_cv_page() {
+ *   $infos = array('steps' => _rf_cv_form_steps(), 'submit_callback' => 'rf_cv_multistep_form_submit');
+ *   return drupal_render(na_multistep_form_get($infos);
+ * }
+ * @endcode
+ *
+ *
+ * @param array $infos
+ *   an associative array describing options to construct our form :
+ *   - steps (array, required)
+ *     - form (string, required) will contain the name of the function declaring the form.
+ *     - title (string, required) will be used for page title on this step.
+ *     - file (string, optionnal) : file to include for this step. Use that to put each step in its own file.
+ *   - submit_callback (string, required) : submit callback to execute when ALL steps are done. *
+ *
+ * @return array
+ *   like drupal_get_form(), you need then to run drupal_render() to actually display the form.
+ */
+function na_multistep_form_get($infos) {
+  foreach ($infos['steps'] as $datas) {
+    if (isset($datas['file'])) {
+      require_once($datas['file']);
+    }
+  }
+  return drupal_get_form('na_multistep_form_build', $infos);
+}
+
+/**
+ * Do not call this function directly, use na_multistep_form_get() to call it,
+ * as it makes arguments more explicite.
+ *
+ * The primary formbuilder function for the multistep form. This is the form that
+ * you should call with drupal_get_form() from your code, and it will include
+ * the rest of the step forms defined. You are not required to change this
+ * function, as this will handle all the step actions for you.
+ *
+ * This form has two defined submit handlers to process the different steps:
+ *  - Previous: handles the way to get back one step in the wizard.
+ *  - Next:     handles each step form submission,
+ *
+ * The third handler is defined in na_multistep_form_get and process the whole
+ * form submission with gathered values.
+ */
+function na_multistep_form_build($form, &$form_state) {
+
+  // get additionnal arguments passed by drupal_get_form in na_multistep_form_get().
+  $infos = $form_state['build_info']['args'][0];
+  $step_informations = $infos['steps'];
+  $submit_callback   = $infos['submit_callback'];
+
+  // Initialize a description of the steps for the wizard.
+  if (empty($form_state['step'])) {
+    $form_state['step'] = 1;
+    // This array contains the function to be called at each step to get the
+    // relevant form elements. It will also store state information for each
+    // step.
+    $form_state['step_information'] = $step_informations;
+  }
+  $step = &$form_state['step'];
+  $step_total = count($step_informations);
+  $step_title = $form_state['step_information'][$step]['title'];
+  $decount = t("step @step/@step_total", array('@step' => $step ,'@step_total' => $step_total));
+  drupal_set_title($step_title. ' - ' . $decount);
+
+  // allow modules to alter form_state BEFORE step forms are called.
+  // this is useful to alter values form form_state['values'] or form_state['step_information][x]['values']
+  drupal_alter('na_multistep_form_state', $form_state);
+
+  // Call the function named in $form_state['step_information'] to get the
+  // form elements to display for this step.
+  $form = $form_state['step_information'][$step]['form']($form, $form_state);
+
+  // Show the 'previous' button if appropriate. Note that #submit is set to
+  // a special submit handler, and that we use #limit_validation_errors to
+  // skip all complaints about validation when using the back button. The
+  // values entered will be discarded, but they will not be validated, which
+  // would be annoying in a "back" button.
+  if ($step > 1) {
+    $form['prev'] = array(
+      '#type' => 'submit',
+      '#value' => t('Previous'),
+      '#name' => 'prev',
+      '#submit' => array('na_multistep_form_previous_submit'),
+      '#limit_validation_errors' => array(),
+    );
+  }
+  // Show the Next button only if there are more steps defined.
+  if ($step < count($form_state['step_information'])) {
+    // The Next button should be included on every step
+    $form['next'] = array(
+      '#type' => 'submit',
+      '#value' => t('Next'),
+      '#name' => 'next',
+      '#submit' => array('na_multistep_form_next_submit'),
+    );
+  }
+  else {
+    // Just in case there are no more steps, we use the default submit handler
+    // of the form wizard. Call this button Finish, Submit, or whatever you
+    // want to show. When this button is clicked, the submit callback is executed.
+    $form['finish'] = array(
+      '#type' => 'submit',
+      '#value' => t('Finish'),
+      '#submit' => array(
+        'na_tools_multistep_form_last_submit',
+        $submit_callback
+      ),
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Submit handler for the "previous" button.
+ * - Stores away $form_state['values']
+ * - Decrements the step counter
+ * - Replaces $form_state['values'] with the values from the previous state.
+ * - Forces form rebuild.
+ *
+ * You are not required to change this function.
+ *
+ * @ingroup form_example
+ */
+function na_multistep_form_previous_submit($form, &$form_state) {
+  $current_step = &$form_state['step'];
+  // do not update form_state['values'] here. As we are using "limit_validation_errors" = array(),
+  // all our values would be empty...
+  if ($current_step > 1) {
+    $current_step--;
+  }
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Submit handler for the 'next' button.
+ * - Saves away $form_state['values']
+ * - Increments the step count.
+ * - Replace $form_state['values'] from the last time we were at this page
+ *   or with array() if we haven't been here before.
+ * - Force form rebuild.
+ *
+ * @param $form
+ * @param $form_state
+ *
+ * @ingroup form_example
+ */
+function na_multistep_form_next_submit($form, &$form_state) {
+  $current_step = &$form_state['step'];
+  // store values for each step.
+  $form_state['step_information'][$current_step]['values'] = $form_state['values'];
+  if ($current_step < count($form_state['step_information'])) {
+    $current_step++;
+    $form_state['rebuild'] = TRUE;  // Force rebuild with next step.
+    return;
+  }
+}
+
+/**
+ * Submit callback for the whole form. This is called juste before user-defined callback.
+ */
+function na_tools_multistep_form_last_submit($form, &$form_state) {
+  // simply put last values in its own step, like we did with others steps.
+  $form_state['step_information'][$form_state['step']]['values'] = $form_state['values'];
+}
+
+/**
+ * Return posted values for _current_ step (stored in form_state['step'] variable)
+ * @param array $form_state
+ *   $form_state as existing in drupal form functions.
+ * @return array
+ *   associative array of posted values.
+ */
+function na_multistep_form_get_current_step_values($form_state) {
+  if (!isset($form_state['step_information'][$form_state['step']]['values'])) return array();
+  return $form_state['step_information'][$form_state['step']]['values'];
+}
+
+/**
+ * Helper function to retrieve a default value for a given field in current step, using a "parents" array.
+ *
+ * @param array $form_state
+ *   form_state as existing in drupal from functions.
+ *
+ * @param array $parents
+ *   Array of parents in $form_state['step_information'][x]['values']. This is NOT
+ *   parents in "$form" array : You need to precise several parents ONLY if you set #tree => TRUE
+ *   somewhere in your form !
+ *   @see also drupal_array_get_nested_value()
+ *
+ * @param mixed $default_value
+ *   a default value to provide if no value is returned.
+ *
+ * @return array|null
+ */
+function na_multistep_form_get_value($form_state, $parents, $default_value = NULL) {
+  $step_values = na_multistep_form_get_current_step_values($form_state);
+  $value = drupal_array_get_nested_value($step_values, $parents);
+  return $value ? $value : $default_value;
+}

@@ -1,0 +1,4 @@
+name = Admin Tabs 
+description = Api to create quickly a admin organized by tabs.
+core = 7.x
+php = 5.2.3

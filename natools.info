@@ -1,0 +1,4 @@
+name = Na tools
+description = Generic helpers functions, classes and APIs for Drupal 7 websites.
+;helpers
+core = 7.x
