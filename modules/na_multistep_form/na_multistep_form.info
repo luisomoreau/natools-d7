@@ -1,5 +1,5 @@
 name = Na multistep form
 description = Provides an API to build drupal multistep forms in a easy way.
-package = na
+package = Natools
 core = 7.x
 

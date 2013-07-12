@@ -1,4 +1,5 @@
 name = "Module starter code"
 description = "Squellette de code d'exemple pour commencer un nouveau module Drupal"
 core = 7.x
+package = Natools
 files[] = includes/modulestarter_article.inc
