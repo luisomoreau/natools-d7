@@ -1,0 +1,8 @@
+name = Na Social Share
+description = helpers function for social sharing with facebook, twitter and googleplus on Drupal sites.
+files[] = classes/na_socialshare.class.php
+files[] = classes/na_facebook.class.php
+files[] = classes/na_twitter.class.php
+files[] = classes/na_googleplus.class.php
+package = Natools
+core = 7.x

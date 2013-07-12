@@ -1,0 +1,210 @@
+<?php
+/**
+ * @file
+ *
+ * Provides a block and a theme function to display "social buttons" like
+ * Facebook, twitter and google plus.
+ * @see classes folder.
+ *
+ * If block is not enough configurable, use directly theme function and pass it the 
+ * params you need, the way you need.
+ *
+ * If theme function is not flexible enough, use directly the classes API to call
+ * widgets, like this :
+ *
+ *  $params = array('data-send' => FALSE, 'data-layout' => 'button_count');
+ *  $facebook_like = new na_facebooklike($params);
+ *  print $facebook_like->render();
+ *
+ *  $twitter_share = new na_twittershare();
+ *  print $twitter_share->render(),
+ */
+
+/**
+ * This is not a hook_implementation, simply a list of active widgets for our theme function and
+ * our default block. 
+ *
+ * A widget MUST be declared in this array to become available in block configuration and in
+ * default theme function.
+ *
+ * each key is a "machine_id". We do not use class as a key because it would break existing
+ * block configured widgets when renaming classes.
+ */
+function na_socialshare_widgets_registry() {
+  return array(
+    'facebook_like' => array(
+      'name'  => 'Facebook Like',
+      'class' => 'na_facebooklike',
+    ),
+    'facebook_send' => array(
+      'name'  => 'Facebook Send',
+      'class' => 'na_facebooksend',
+    ),
+    'facebook_comment' => array(
+      'name'  => 'Facebook Comment',
+      'class' => 'na_facebookcomment',
+    ),
+    'google_plus' => array(
+      'name'  => 'Google Plus',
+      'class' => 'na_googleplus',
+    ),
+    'twitter_share' => array(
+      'name'  => 'Twitter Share',
+      'class' => 'na_twittershare',
+    ),
+    'twitter_follow' => array(
+      'name'  => 'Twitter Follow',
+      'class' => 'na_twitterfollow',
+    ),
+    'twitter_hashtag' => array(
+      'name'  => 'Twitter Hashtag',
+      'class' => 'na_twitterhashtag',
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function na_socialshare_block_info() {
+  $blocks = array();
+  $blocks['na_socialshare'] = array(
+    'info' => t('Social Share buttons'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view()
+ */
+function na_socialshare_block_view($delta = '') {
+  $block = array();
+  switch ($delta) {
+    case 'na_socialshare':
+      $widgets = drupal_parse_info_format(variable_get('na_socialshare_widgets', ''));
+      $block['subject'] = t('RF site social share');
+      $block['content'] = theme('na_socialshare', array('config' => $widgets));
+      break;
+    
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_block_configure()
+ */
+function na_socialshare_block_configure($delta = '') {
+  $form = array();
+  if ($delta == 'na_socialshare') {
+    $form['na_socialshare_widgets'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Enabled following social widgets. See list of available widgets id in table below this field.'),
+      '#default_value' => variable_get(
+        'na_socialshare_widgets', 
+        "facebook_like=''"),
+      '#description' => na_socialshare_help_instructions(),
+      '#rows' => 15,
+    );
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_block_save()
+ */
+function na_socialshare_block_save($delta = '', $edit = array()) {
+  if ($delta == 'na_socialshare') {
+    variable_set('na_socialshare_widgets', $edit['na_socialshare_widgets']);
+  }
+}
+
+/**
+ * Provide necessary informations about how use our module and its widgets.
+ */
+function na_socialshare_help_instructions() {
+
+  $help = "<p>Use drupal info file format to configure this block : <br />
+    <strong><pre>
+    ; do not forget quotes when there is no params.
+    twitter_share = ''
+    google_plus = ''
+    ; create subarrays for params.
+    facebook_like[data-send] = 'false'
+    facebook_like[data-width] = '115'
+    </strong></pre><br />
+    Go to facebook, twitter etc... to find available list of params.<br />
+    \"Custom params\" are internal additionnal params, that are sometimes not part of native API of button, but
+    that you can add to customize widget behaviors. Just write them as other params in the query string.<br /><br/>
+    Table below list availables widget id (prodived by na_socialshare module) and their custom params, if any. <br />
+    </p>";
+
+  $table = array('header' => array('id', 'name', 'custom params', 'help'));
+
+  foreach (na_socialshare_widgets_registry() as $id => $widget_infos) {
+
+    $params_custom = array();
+    // use call_user_func() as $variable::method works only with php >= 5.3
+    foreach (call_user_func(array($widget_infos['class'], 'params_custom')) as $variable => $description) {
+      $params_custom[] = "<strong>$variable</strong> : $description";
+    }
+    $params_custom = $params_custom ? $params_custom : array('none');
+    $params_custom_list = theme('item_list', array('items' => $params_custom));
+    $table['rows'][] = array(
+      $id, 
+      $widget_infos['name'] ,
+      $params_custom_list , 
+      l(t('Help'), call_user_func(array($widget_infos['class'], 'help_url')), array('attributes' => array('target' => '_blank'))),
+    );
+  }
+
+  $table = theme('table', $table);
+
+  return $help.$table;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function na_socialshare_theme($existing, $type, $theme, $path) {
+  return array(
+    'na_socialshare' => array(
+      'variables' => array('config' => ''),
+    ),
+  );
+}
+
+/**
+ * Displaying social share buttons.
+ *
+ * @param $vars 
+ * associative array where key is a widget id, and value are options for buttons constructor. Ex :
+ * array(
+ *   'facebook_like' => array('data-send' => true), 
+ *   'twitter_share' => array(),
+ * );
+ * @return string
+ */
+function theme_na_socialshare($vars = array()) {
+  $output = '';
+  $output .= '<div id="rf-site-socialshare">';
+  foreach ($vars['widgets'] as $widget) {
+    $output .= '<div>' . $widget->render() . '</div>';
+  }
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Prepare theme function : instanciate widgets according to config variables.
+ * Only widgets declared in na_socialshare_widgets_registry() are displayed.
+ */
+function template_process_na_socialshare(&$vars) {
+  $widgets_registry = na_socialshare_widgets_registry();
+  foreach ($vars['config'] as $name => $params) {
+    if (isset($widgets_registry[$name])) {
+       $class = $widgets_registry[$name]['class'];
+       $vars['widgets'][] = new $class($params);
+    }
+  }
+}
+
