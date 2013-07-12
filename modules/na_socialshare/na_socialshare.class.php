@@ -2,7 +2,7 @@
 /**
  * @file
  *
- * Base class to implements social buttons.
+ * Abstract class to implements social buttons.
  *
  * How to use example :
  * @code
