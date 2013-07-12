@@ -67,11 +67,16 @@ function na_socialshare_widgets_registry() {
  * Implements hook_block_info().
  */
 function na_socialshare_block_info() {
-  $blocks = array();
-  $blocks['na_socialshare'] = array(
-    'info' => t('Social Share buttons'),
-  );
-  return $blocks;
+  return array('na_socialshare' => array('info' => t('Social Share buttons')));
+}
+
+function na_socialshare_default_config() {
+  return implode("\r\n", array(
+    "twitter_share = ''",
+    "google_plus = ''",
+    "facebook_like = ''",
+    "facebook_like = ''"
+  ));
 }
 
 /**
@@ -79,13 +84,10 @@ function na_socialshare_block_info() {
  */
 function na_socialshare_block_view($delta = '') {
   $block = array();
-  switch ($delta) {
-    case 'na_socialshare':
-      $widgets = drupal_parse_info_format(variable_get('na_socialshare_widgets', ''));
-      $block['subject'] = t('Social share');
-      $block['content'] = theme('na_socialshare', array('config' => $widgets));
-      break;
-    
+  if ($delta == 'na_socialshare') {
+    $widgets = drupal_parse_info_format(variable_get('na_socialshare_widgets', na_socialshare_default_config()));
+    $block['subject'] = t('Social share');
+    $block['content'] = theme('na_socialshare', array('config' => $widgets));
   }
   return $block;
 }
@@ -101,7 +103,7 @@ function na_socialshare_block_configure($delta = '') {
       '#title' => t('Enabled following social widgets. See list of available widgets id in table below this field.'),
       '#default_value' => variable_get(
         'na_socialshare_widgets', 
-        "facebook_like=''"),
+        na_socialshare_default_config()),
       '#description' => na_socialshare_help_instructions(),
       '#rows' => 15,
     );
@@ -119,13 +121,14 @@ function na_socialshare_block_save($delta = '', $edit = array()) {
 }
 
 /**
- * Provide necessary informations about how use our module and its widgets.
+ * Provide necessary documentation about how use our module and its widgets.
+ * This appears in block configuration.
  */
 function na_socialshare_help_instructions() {
 
-  $help = "<p>Use drupal info file format to configure this block : <br />
+  $help = "<p>Use drupal info file format to configure this block. Example of configuration : <br />
     <strong><pre>
-    ; do not forget quotes when there is no params.
+    ;Show twitter_share and google_plus widgets. Do not forget quotes when there is no params.
     twitter_share = ''
     google_plus = ''
     ; create subarrays for params.
@@ -153,7 +156,7 @@ function na_socialshare_help_instructions() {
       $id, 
       $widget_infos['name'] ,
       $params_custom_list , 
-      l(t('Help'), call_user_func(array($widget_infos['class'], 'help_url')), array('attributes' => array('target' => '_blank'))),
+      l(call_user_func(array($widget_infos['class'], 'help_url')), call_user_func(array($widget_infos['class'], 'help_url')), array('attributes' => array('target' => '_blank'))),
     );
   }
 
@@ -186,10 +189,12 @@ function na_socialshare_theme($existing, $type, $theme, $path) {
  */
 function theme_na_socialshare($vars = array()) {
   $output = '';
-  $output .= '<div id="rf-site-socialshare">';
+  $output .= '<div id="na-socialshare">';
+  $output .= '<ul>';
   foreach ($vars['widgets'] as $widget) {
-    $output .= '<div>' . $widget->render() . '</div>';
+    $output .= '<li>' . $widget->render() . '</li>';
   }
+  $output .= '</ul>';
   $output .= '</div>';
   return $output;
 }
