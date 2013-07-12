@@ -82,7 +82,7 @@ function na_socialshare_block_view($delta = '') {
   switch ($delta) {
     case 'na_socialshare':
       $widgets = drupal_parse_info_format(variable_get('na_socialshare_widgets', ''));
-      $block['subject'] = t('RF site social share');
+      $block['subject'] = t('Social share');
       $block['content'] = theme('na_socialshare', array('config' => $widgets));
       break;
     
