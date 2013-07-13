@@ -21,11 +21,12 @@
  */
 
 /**
- * Declare our classes.
+ * Implements na_socialshare_widgets_info()
+ *
  * A widget class MUST be declared in this array to become available in block configuration and in
  * default theme function.
  */
-function na_socialshare_widgets_classes() {
+function na_socialshare_na_socialshare_widgets_info() {
   return array(
     'na_facebooklike',
     'na_facebooksend',
@@ -104,7 +105,8 @@ function na_socialshare_help_instructions() {
 
   $table = array('header' => array('Class', 'Name', 'Custom params', 'Help', 'Preview'));
    
-  $classes = na_socialshare_widgets_classes();
+  $classes = module_invoke_all('na_socialshare_widgets_info');
+
   foreach ($classes as $class) {
 
     $widget = new $class();
@@ -163,7 +165,6 @@ function theme_na_socialshare($vars = array()) {
 
 /**
  * Prepare theme function : instanciate widgets according to config variables.
- * Only widgets declared in na_socialshare_widgets_classes() are displayed.
  */
 function template_process_na_socialshare(&$vars) {
   foreach ($vars['widgets'] as $id => $widget) {
