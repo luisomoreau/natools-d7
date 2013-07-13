@@ -124,7 +124,7 @@ function natools_menu_children_get($path, $menu_name) {
  *
  * @see menu_tree_data()
  */
-static function natools_menu_subtree_get($tree, $menu_link) {
+function natools_menu_subtree_get($tree, $menu_link) {
   $parents = array();
   for ($i = 1; $i <= $menu_link['depth']; $i++) {
     $parents[] = $menu_link["p$i"];
@@ -145,7 +145,7 @@ static function natools_menu_subtree_get($tree, $menu_link) {
  * @return (mixed)
  *   nid (int) of the parent node or FALSE if no nid is found.
  */
-static function natools_menu_node_parent_get($nid, $menu_name) {
+function natools_menu_node_parent_get($nid, $menu_name) {
   // we are not using menu_node table as this is not mandatory to get the job done.
   $path = "node/$nid";
   $query = "SELECT ml2.link_path FROM  {menu_links} ml1 
@@ -364,7 +364,7 @@ function natools_taxonomy_nodes_select($tids, $options = array()) {
  *
  * @see taxonomy_get_nested_tree.
  */
-static function natools_taxonomy_get_tree($terms, $parent = 0, $max_depth = NULL, $load_entities = FALSE, $load_nids = FALSE, $parents_index = array(), $depth = 0) {
+function natools_taxonomy_get_tree($terms, $parent = 0, $max_depth = NULL, $load_entities = FALSE, $load_nids = FALSE, $parents_index = array(), $depth = 0) {
   foreach($terms as $term) {
     foreach($term->parents as $term_parent) {
       if ($term_parent == $parent) {
