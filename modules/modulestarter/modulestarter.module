@@ -2,7 +2,7 @@
 /**
  * @file
  *
- * Module starter : squelette de module selon les normes RFC-na2013
+ * Module starter : squelette de module a copier coller.
  */
 
 // definir des constantes utiles. Préfixer par le nom du module chaque constante.
@@ -45,6 +45,31 @@ function modulestarter_block_view($delta) {
 }
 
 /**
+ * Implements hook_block_configure()
+ */
+function modulestarter_block_configure($delta = '') {
+  $form = array();
+  if ($delta == 'modulestarter_article_list') {
+    $form['modulestarter_config'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Configuration'),
+      '#default_value' => variable_get('modulestarter_config', 'Default value'),
+      '#rows' => 5,
+    );
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_block_save()
+ */
+function modulestarter_block_save($delta = '', $edit = array()) {
+  if ($delta == 'modulestarter_article_list') {
+    variable_set('modulestarter_config', $edit['modulestarter_config']);
+  }
+}
+
+/**
  * Implements hook_menu().
  * Create Drupal pages. This map an url to a function.
  */
@@ -76,10 +101,9 @@ function modulestarter_theme() {
  * Page callback for menu item "modulestarter-hello/%".
  */
 function modulestarter_hello_page_callback($name) {
-  // add our custom css and js.
+  // Uncomment to add custom css and js to this page.
   // drupal_add_css(drupal_get_path('module', 'modulestarter') . '/assets/modulestarter.css');
   // drupal_add_js(drupal_get_path('module', 'modulestarter') . '/assets/modulestarter.js');
-  // return hello {name} !
   return 'hello ! ';
 }
 
