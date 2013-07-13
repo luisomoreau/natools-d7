@@ -2,7 +2,7 @@ natools-d7
 ==========
 
 Toolbox for Drupal 7.
-- modune natools contains helpers classes and functions that may be used by other modules in "modules" directory.
+- module natools contains helpers classes and functions that may be used by other modules in "modules" directory.
 - module modulestarter is a skeleton / example module to create quickly a new module
 - module na_socialshare allow to display twitter, facebook and google plus with a configurable block.
 - module admintabs allow to create tabbed administration pages. Handle user redirection on a given at logged in, permissions per tab. This mainly a wrapper around hook_menu and local tasks.
