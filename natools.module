@@ -33,7 +33,7 @@ function natools_theme($existing, $type, $theme, $path) {
   =========================== */
 
 /**
- * Include a file from "libraries" directory.
+ * Include a file from "includes" directory.
  * @param $name
  */
 function natools_include($name) {
