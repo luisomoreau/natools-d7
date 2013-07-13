@@ -29,6 +29,7 @@ function menusection_theme() {
 function menusection_menu() {
   $items = array();
   // admin/menu-section/{menu machine name}/{menu item mlid}
+  // e.g : admin/menu-section/navigation/6
   $items['admin/menu-section/%menu/%menu_link'] = array(
     'title' => 'Customize menu',
     'page callback' => 'drupal_get_form',
@@ -65,7 +66,7 @@ function menusection_permission() {
 }
 
 /**
- * Thjis is a copy paste from drupal "menu_overview_form", with some tweaks to extract subsections.
+ * This is a copy paste from drupal "menu_overview_form", with some tweaks to extract subsections.
  * Form for editing an entire menu tree at once.
  *
  * Shows for one menu the menu links accessible to the current user and

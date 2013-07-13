@@ -2,12 +2,12 @@
 /**
  * @file
  *
- * Provides a block and a theme function to display "social buttons" like
+ * Provides a block fullu configurable and a theme function to display "social buttons" like
  * Facebook, twitter and google plus.
- * @see classes folder.
+ * @see plugins folder for examples implementations.
  *
  * If block is not enough configurable, use directly theme function and pass it the 
- * params you need, the way you need.
+ * params you need
  *
  * If theme function is not flexible enough, use directly the classes API to call
  * widgets, like this :
@@ -23,7 +23,7 @@
 /**
  * Implements na_socialshare_widgets_info()
  *
- * A widget class MUST be declared in this array to become available in block configuration and in
+ * A widget class MUST be declared in this hook to become available in block configuration and in
  * default theme function.
  */
 function na_socialshare_na_socialshare_widgets_info() {
@@ -89,8 +89,7 @@ function na_socialshare_block_save($delta = '', $edit = array()) {
 
 function na_socialshare_default_config() {
   return implode("\r\n", array(
-    "na_facebooklike?data-show-faces=true&data-send=true",
-    "na_twitterhashtag?hashtag=test",
+    "na_facebooklike?data-show-faces=true",
     "na_googleplus",
   ));
 }
