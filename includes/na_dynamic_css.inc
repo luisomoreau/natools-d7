@@ -4,7 +4,7 @@
  * Helper class to generate dynamic css, where we can
  * use php.
  */
-class dynamic_css {
+class na_dynamic_css {
 
   private $file = null;
   private $variables = null;
@@ -28,9 +28,8 @@ class dynamic_css {
      include($this->file);
      $dcss = ob_get_contents();
      ob_end_clean();
-     drupal_add_css($dcss, array('type' => 'inline', 'preprocess' => FALSE));
+     drupal_add_css($dcss, array('group' => CSS_THEME, 'weight' => 1000, 'type' => 'inline', 'preprocess' => FALSE));
   }
 
 }
-
 
