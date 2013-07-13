@@ -28,6 +28,33 @@ function natools_theme($existing, $type, $theme, $path) {
   );
 }
 
+/**
+ * implements hook_preprocess_hooks()
+ * Prepare variable for theme_natools_views_embed.
+ * @see theme_natools_views_embed()
+ */
+function template_preprocess_natools_views_embed(&$vars) {
+  $view = views_get_view($vars['views_name'], $vars['views_display_id']);
+  if (!$view || !$view->access($vars['views_display_id']) || !views_get_view_result($vars['views_name'], $vars['views_display_id'])) {
+    $vars['view'] = FALSE;
+  }
+  else {
+
+    // if we want no title, we have to put "<none>" has title value
+    if ($vars['title'] == '<none>') {
+      $vars['title'] = '';
+    }
+    // if not, use title asked, or title from view display if nothing was specified.
+    else {
+      $vars['title'] = $vars['title'] ? $vars['title'] : $view->display[$vars['views_display_id']]->display_title;
+    }
+
+    $vars['title_class'] = $vars['title_class'] ? $vars['title_class'] : 'views-embed-title';
+    $vars['title_tag'] = $vars['title_tag'] ? $vars['title_tag'] : 'div';
+    $vars['view'] = $view;
+  }
+}
+
 /*****************
  * FIELDS
  *****************/
@@ -185,34 +212,6 @@ function natools_menu_node_children_get($nid) {
   }
   return $nids;
 
-}
-
-
-/**
- * implements hook_preprocess_hooks()
- * Prepare variable for theme_na_tootls_views_embed.
- * @see theme_natools_views_embed()
- */
-function template_preprocess_natools_views_embed(&$vars) {
-  $view = views_get_view($vars['views_name'], $vars['views_display_id']);
-  if (!$view || !$view->access($vars['views_display_id']) || !views_get_view_result($vars['views_name'], $vars['views_display_id'])) {
-    $vars['view'] = FALSE;
-  }
-  else {
-
-    // if we want no title, we have to put "<none>" has title value
-    if ($vars['title'] == '<none>') {
-      $vars['title'] = '';
-    }
-    // if not, use title asked, or title from view display if nothing was specified.
-    else {
-      $vars['title'] = $vars['title'] ? $vars['title'] : $view->display[$vars['views_display_id']]->display_title;
-    }
-
-    $vars['title_class'] = $vars['title_class'] ? $vars['title_class'] : 'views-embed-title';
-    $vars['title_tag'] = $vars['title_tag'] ? $vars['title_tag'] : 'div';
-    $vars['view'] = $view;
-  }
 }
 
 /**
