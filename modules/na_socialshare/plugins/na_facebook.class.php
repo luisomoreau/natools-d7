@@ -35,6 +35,10 @@ abstract class na_facebook extends na_socialshare {
  */
 class na_facebooklike extends na_facebook {
 
+  function help_url() {
+    return 'https://developers.facebook.com/docs/reference/plugins/like/';
+  }
+
   function title() {
     return "Facebook Like";
   }
@@ -49,6 +53,10 @@ class na_facebooklike extends na_facebook {
  * Facebook send button implementation.
  */
 class na_facebooksend extends na_facebook {
+
+  function help_url() {
+    return 'https://developers.facebook.com/docs/reference/plugins/send/';
+  }
 
   function title() {
     return "Facebook Send";
