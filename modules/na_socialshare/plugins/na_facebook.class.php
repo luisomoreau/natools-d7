@@ -11,12 +11,8 @@
  */
 abstract class na_facebook extends na_socialshare {
 
-  static function help_url() {
+  function help_url() {
     return 'http://developers.facebook.com/docs/plugins';
-  }
-
-  static function params_custom() {
-    return array();
   }
 
   function script() {
@@ -39,6 +35,10 @@ abstract class na_facebook extends na_socialshare {
  */
 class na_facebooklike extends na_facebook {
 
+  function title() {
+    return "Facebook Like";
+  }
+
   function html() {
     return '<div class="fb-like" ' . $this->params_to_html_attributes($this->params) . '></div>';
   }
@@ -49,6 +49,10 @@ class na_facebooklike extends na_facebook {
  * Facebook send button implementation.
  */
 class na_facebooksend extends na_facebook {
+
+  function title() {
+    return "Facebook Send";
+  }
 
   function html() {
     return '<div class="fb-send" ' . $this->params_to_html_attributes($this->params) . '></div>';
@@ -61,7 +65,11 @@ class na_facebooksend extends na_facebook {
  */
 class na_facebookcomment extends na_facebook {
 
-  function __construct($params) {
+  function title() {
+    return "Facebook Comment";
+  }
+
+  function __construct($params = array()) {
     // set default url to current page if data-href is empty.
     global $base_root;
     if (!isset($params['data-href'])) $params['data-href'] = $base_root . request_uri();

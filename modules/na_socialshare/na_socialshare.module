@@ -21,45 +21,19 @@
  */
 
 /**
- * This is not a hook_implementation, simply a list of active widgets for our theme function and
- * our default block. 
- *
- * A widget MUST be declared in this array to become available in block configuration and in
+ * Declare our classes.
+ * A widget class MUST be declared in this array to become available in block configuration and in
  * default theme function.
- *
- * each key is a "machine_id". We do not use class as a key because it would break existing
- * block configured widgets when renaming classes.
  */
-function na_socialshare_widgets_registry() {
+function na_socialshare_widgets_classes() {
   return array(
-    'facebook_like' => array(
-      'name'  => 'Facebook Like',
-      'class' => 'na_facebooklike',
-    ),
-    'facebook_send' => array(
-      'name'  => 'Facebook Send',
-      'class' => 'na_facebooksend',
-    ),
-    'facebook_comment' => array(
-      'name'  => 'Facebook Comment',
-      'class' => 'na_facebookcomment',
-    ),
-    'google_plus' => array(
-      'name'  => 'Google Plus',
-      'class' => 'na_googleplus',
-    ),
-    'twitter_share' => array(
-      'name'  => 'Twitter Share',
-      'class' => 'na_twittershare',
-    ),
-    'twitter_follow' => array(
-      'name'  => 'Twitter Follow',
-      'class' => 'na_twitterfollow',
-    ),
-    'twitter_hashtag' => array(
-      'name'  => 'Twitter Hashtag',
-      'class' => 'na_twitterhashtag',
-    ),
+    'na_facebooklike',
+    'na_facebooksend',
+    'na_facebookcomment',
+    'na_googleplus',
+    'na_twittershare',
+    'na_twitterfollow',
+    //'na_twitterhashtag',
   );
 }
 
@@ -70,24 +44,16 @@ function na_socialshare_block_info() {
   return array('na_socialshare' => array('info' => t('Social Share buttons')));
 }
 
-function na_socialshare_default_config() {
-  return implode("\r\n", array(
-    "twitter_share = ''",
-    "google_plus = ''",
-    "facebook_like = ''",
-    "facebook_like = ''"
-  ));
-}
-
 /**
  * Implements hook_block_view()
  */
 function na_socialshare_block_view($delta = '') {
   $block = array();
   if ($delta == 'na_socialshare') {
-    $widgets = drupal_parse_info_format(variable_get('na_socialshare_widgets', na_socialshare_default_config()));
+    $snippets = variable_get('na_socialshare_widgets', na_socialshare_default_config());
+    $widgets = natools_parse_snippet_list($snippets);
     $block['subject'] = t('Social share');
-    $block['content'] = theme('na_socialshare', array('config' => $widgets));
+    $block['content'] = theme('na_socialshare', array('widgets' => $widgets));
   }
   return $block;
 }
@@ -105,7 +71,7 @@ function na_socialshare_block_configure($delta = '') {
         'na_socialshare_widgets', 
         na_socialshare_default_config()),
       '#description' => na_socialshare_help_instructions(),
-      '#rows' => 15,
+      '#rows' => 5,
     );
   }
   return $form;
@@ -120,43 +86,39 @@ function na_socialshare_block_save($delta = '', $edit = array()) {
   }
 }
 
+function na_socialshare_default_config() {
+  return implode("\r\n", array(
+    "na_facebooklike?data-show-faces=true&data-send=true",
+    "na_twitterhashtag?hashtag=test",
+    "na_googleplus",
+  ));
+}
+
 /**
  * Provide necessary documentation about how use our module and its widgets.
  * This appears in block configuration.
  */
 function na_socialshare_help_instructions() {
 
-  $help = "<p>Use drupal info file format to configure this block. Example of configuration : <br />
-    <strong><pre>
-    ;Show twitter_share and google_plus widgets. Do not forget quotes when there is no params.
-    twitter_share = ''
-    google_plus = ''
-    ; create subarrays for params.
-    facebook_like[data-send] = 'false'
-    facebook_like[data-width] = '115'
-    </strong></pre><br />
-    Go to facebook, twitter etc... to find available list of params.<br />
-    \"Custom params\" are internal additionnal params, that are sometimes not part of native API of button, but
-    that you can add to customize widget behaviors. Just write them as other params in the query string.<br /><br/>
-    Table below list availables widget id (prodived by na_socialshare module) and their custom params, if any. <br />
-    </p>";
+  $help = "<p>Table below list availables widgets and their custom params, if any. </p>";
 
-  $table = array('header' => array('id', 'name', 'custom params', 'help'));
+  $table = array('header' => array('Class', 'Name', 'Custom params', 'Help', 'Preview'));
+   
+  $classes = na_socialshare_widgets_classes();
+  foreach ($classes as $class) {
 
-  foreach (na_socialshare_widgets_registry() as $id => $widget_infos) {
-
+    $widget = new $class();
     $params_custom = array();
-    // use call_user_func() as $variable::method works only with php >= 5.3
-    foreach (call_user_func(array($widget_infos['class'], 'params_custom')) as $variable => $description) {
+    foreach ($widget->params_custom() as $variable => $description) {
       $params_custom[] = "<strong>$variable</strong> : $description";
     }
-    $params_custom = $params_custom ? $params_custom : array('none');
     $params_custom_list = theme('item_list', array('items' => $params_custom));
     $table['rows'][] = array(
-      $id, 
-      $widget_infos['name'] ,
+      $class, 
+      $widget->title() ,
       $params_custom_list , 
-      l(call_user_func(array($widget_infos['class'], 'help_url')), call_user_func(array($widget_infos['class'], 'help_url')), array('attributes' => array('target' => '_blank'))),
+      l($widget->help_url(), $widget->help_url(), array('attributes' => array('target' => '_blank'))),
+      $widget->render(),
     );
   }
 
@@ -171,7 +133,7 @@ function na_socialshare_help_instructions() {
 function na_socialshare_theme($existing, $type, $theme, $path) {
   return array(
     'na_socialshare' => array(
-      'variables' => array('config' => ''),
+      'variables' => array('widgets' => array()),
     ),
   );
 }
@@ -201,14 +163,17 @@ function theme_na_socialshare($vars = array()) {
 
 /**
  * Prepare theme function : instanciate widgets according to config variables.
- * Only widgets declared in na_socialshare_widgets_registry() are displayed.
+ * Only widgets declared in na_socialshare_widgets_classes() are displayed.
  */
 function template_process_na_socialshare(&$vars) {
-  $widgets_registry = na_socialshare_widgets_registry();
-  foreach ($vars['config'] as $name => $params) {
-    if (isset($widgets_registry[$name])) {
-       $class = $widgets_registry[$name]['class'];
-       $vars['widgets'][] = new $class($params);
+  foreach ($vars['widgets'] as $id => $widget) {
+    $class = $widget['name'];
+    if (class_exists($class)) {
+      $vars['widgets'][$id] = new $class($widget['params']);
+    }
+    else {
+      unset($vars['widgets'][$id]);
+      trigger_error("No widget with class $class was found", E_USER_ERROR);
     }
   }
 }

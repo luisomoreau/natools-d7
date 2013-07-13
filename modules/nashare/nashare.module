@@ -1,0 +1,201 @@
+<?php
+/**
+ * @file
+ *
+ * Provides a block and a theme function to display "social buttons" like
+ * Facebook, twitter and google plus.
+ */
+
+/**
+ * This is not a hook_implementation, simply a list of active widgets for our theme function and
+ * our default block. 
+ *
+ * A widget MUST be declared in this array to become available in block configuration and in
+ * default theme function.
+ *
+ * each key is a "machine_id". We do not use class as a key because it would break existing
+ * block configured widgets when renaming classes.
+ */
+function nashare_widgets_registry() {
+  return array(
+    'facebook_like' => array(
+      'name'  => 'Facebook Like',
+      'class' => 'na_facebooklike',
+    ),
+    'facebook_send' => array(
+      'name'  => 'Facebook Send',
+      'class' => 'na_facebooksend',
+    ),
+    'facebook_comment' => array(
+      'name'  => 'Facebook Comment',
+      'class' => 'na_facebookcomment',
+    ),
+    'google_plus' => array(
+      'name'  => 'Google Plus',
+      'class' => 'na_googleplus',
+    ),
+    'twitter_share' => array(
+      'name'  => 'Twitter Share',
+      'class' => 'na_twittershare',
+    ),
+    'twitter_follow' => array(
+      'name'  => 'Twitter Follow',
+      'class' => 'na_twitterfollow',
+    ),
+    'twitter_hashtag' => array(
+      'name'  => 'Twitter Hashtag',
+      'class' => 'na_twitterhashtag',
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function nashare_block_info() {
+  return array('nashare' => array('info' => t('Social Share buttons')));
+}
+
+function nashare_default_config() {
+  return implode("\r\n", array(
+    "twitter_share = ''",
+    "google_plus = ''",
+    "facebook_like = ''",
+    "facebook_like = ''"
+  ));
+}
+
+/**
+ * Implements hook_block_view()
+ */
+function nashare_block_view($delta = '') {
+  $block = array();
+  if ($delta == 'nashare') {
+    $widgets = drupal_parse_info_format(variable_get('nashare_widgets', na_socialshare_default_config()));
+    $block['subject'] = t('Social share');
+    $block['content'] = theme('nashare', array('config' => $widgets));
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_block_configure()
+ */
+function nashare_block_configure($delta = '') {
+  $form = array();
+  if ($delta == 'nashare') {
+    $form['nashare_widgets'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Enabled following social widgets. See list of available widgets id in table below this field.'),
+      '#default_value' => variable_get(
+        'nashare_widgets', 
+        nashare_default_config()),
+      '#description' => nashare_help_instructions(),
+      '#rows' => 15,
+    );
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_block_save()
+ */
+function nashare_block_save($delta = '', $edit = array()) {
+  if ($delta == 'nashare') {
+    variable_set('nashare_widgets', $edit['na_socialshare_widgets']);
+  }
+}
+
+/**
+ * Provide necessary documentation about how use our module and its widgets.
+ * This appears in block configuration.
+ */
+function nashare_help_instructions() {
+
+  $help = "<p>Use drupal info file format to configure this block. Example of configuration : <br />
+    <strong><pre>
+    ;Show twitter_share and google_plus widgets. Do not forget quotes when there is no params.
+    twitter_share = ''
+    google_plus = ''
+    ; create subarrays for params.
+    facebook_like[data-send] = 'false'
+    facebook_like[data-width] = '115'
+    </strong></pre><br />
+    Go to facebook, twitter etc... to find available list of params.<br />
+    \"Custom params\" are internal additionnal params, that are sometimes not part of native API of button, but
+    that you can add to customize widget behaviors. Just write them as other params in the query string.<br /><br/>
+    Table below list availables widget id (prodived by nashare module) and their custom params, if any. <br />
+    </p>";
+
+  $table = array('header' => array('id', 'name', 'custom params', 'help'));
+
+  foreach (nashare_widgets_registry() as $id => $widget_infos) {
+
+    $params_custom = array();
+    // use call_user_func() as $variable::method works only with php >= 5.3
+    foreach (call_user_func(array($widget_infos['class'], 'params_custom')) as $variable => $description) {
+      $params_custom[] = "<strong>$variable</strong> : $description";
+    }
+    $params_custom = $params_custom ? $params_custom : array('none');
+    $params_custom_list = theme('item_list', array('items' => $params_custom));
+    $table['rows'][] = array(
+      $id, 
+      $widget_infos['name'] ,
+      $params_custom_list , 
+      l(call_user_func(array($widget_infos['class'], 'help_url')), call_user_func(array($widget_infos['class'], 'help_url')), array('attributes' => array('target' => '_blank'))),
+    );
+  }
+
+  $table = theme('table', $table);
+
+  return $help.$table;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function nashare_theme($existing, $type, $theme, $path) {
+  return array(
+    'nashare' => array(
+      'variables' => array('config' => ''),
+    ),
+  );
+}
+
+/**
+ * Displaying social share buttons.
+ *
+ * @param $vars 
+ * associative array where key is a widget id, and value are options for buttons constructor. Ex :
+ * array(
+ *   'facebook_like' => array('data-send' => true), 
+ *   'twitter_share' => array(),
+ * );
+ * @return string
+ */
+function theme_nashare($vars = array()) {
+  $output = '';
+  $output .= '<div id="na-socialshare">';
+  $output .= '<ul>';
+  foreach ($vars['widgets'] as $widget) {
+    $output .= '<li>' . $widget->render() . '</li>';
+  }
+  $output .= '</ul>';
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Prepare theme function : instanciate widgets according to config variables.
+ * Only widgets declared in nashare_widgets_registry() are displayed.
+ */
+function template_process_nashare(&$vars) {
+  $widgets_registry = nashare_widgets_registry();
+  foreach ($vars['config'] as $name => $params) {
+    if (isset($widgets_registry[$name])) {
+       $class = $widgets_registry[$name]['class'];
+       $vars['widgets'][] = new $class($params);
+    }
+  }
+}
+

@@ -2,8 +2,8 @@
 /**
  * @file
  *
- * Abstract class to implements social buttons.
- *
+ * Base class to implements social buttons. Extends this class to create
+ * widgets.
  * How to use example :
  * @code
  *   $params = array('data-send' => FALSE, 'data-layout' => 'button_count');
@@ -26,50 +26,52 @@ abstract class na_socialshare {
   static protected $js_already_included = array();
 
   /**
-   * @params
+   * @param array $params
    * an associative array of options for the button. E.g :
    * array('data-send' => FALSE, 'data-layout' => 'button_count', etc...);
    */
   function __construct($params = array()) {
-    if (!is_array($params) && !$params) return;
     foreach ($params as $key => $value) {
-       // encode quotes.
        $this->params[$key] = htmlentities($value, ENT_QUOTES);
     }
   }
 
   /**
-   * Must return an url to the page listing all existing paramaters, for ex :
-   * http://developers.facebook.com/docs/plugins/
-   * This is a valuable information for building an administration page for those buttons.
+   * @return string
+   * Url to documentation for existing parameters. E.g : http://developers.facebook.com/docs/plugins/
    */
-  abstract static function help_url();
+  abstract function help_url();
+
 
   /**
-   * You button may contains custom params, not documented by their API or for you own needs.
-   * Pass them the same way you pass normal params to the constructor, this is just a way to
-   * "document" them, so that user know which params he is able to pass. Be sure that you custom
-   * param has not the same key as an existing params.
+   * @return string
+   * Title of this widget (to display on admin for example)
+   */
+  abstract function title();
+
+  /**
+   * @return array of custom params.
+   *
+   * You can pass custom params to the constructor. Add in this function their
+   * documentation, so that user now available params when configuring a block.
+   * Make sur your custom param has not the same key as an existing param !
    *
    * For example, for "twitter follow" you may specify which account to follow
-   * in the link, and this is not passed as a classic param from their API. 
-   * You must return
-   * an array of the form :
+   * in the link, and this is not passed as a classic param from twitter API. 
+   * You have to return an array of the form :
    *
    * @code
-   * return array(
-   *   'variable_name' => 'Description of what this variable does in your class.',
-   * );
+   * return array('variable_name' => 'Description of what this variable does in your class.');
    * @endcode
    */
-  abstract static function params_custom();  
+  function params_custom() {return array();}
 
   /**
    * set params array to a string that we may insert in html attributes, like
    * data-show="false" data-cout="true" 
    * This is how facebook, googleplus and twitter handle options for their share links
    * in html5 version.
-   * @TODO we could use drupal_attributes. Because it would be the only dependance
+   * @TODO we could use drupal_attributes. Because it would be our only dependance
    * to Drupal API in our classes for now, keep our own version.
    */
   protected function params_to_html_attributes($params) {
@@ -92,7 +94,7 @@ abstract class na_socialshare {
   /**
    * Display html of the social share service.
    *
-   * only return part of the code that will display social widget. Js must not be added here.
+   * only return part of the code that will display social widget. Js should not be added here.
    */
   abstract function html();
 

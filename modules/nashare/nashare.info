@@ -4,6 +4,5 @@ files[] = na_socialshare.class.php
 files[] = plugins/na_facebook.class.php
 files[] = plugins/na_twitter.class.php
 files[] = plugins/na_googleplus.class.php
-dependencies[] = natools
 package = Natools
 core = 7.x

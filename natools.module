@@ -126,3 +126,36 @@ function theme_natools_views_embed($vars) {
   return $out;
 }
 
+/**
+ * A snippet is a string of the form "myobject?test=3&param2=true"
+ */
+function natools_parse_snippet($string) {
+  $url = parse_url($string);
+  if (isset($url['query'])) {
+    parse_str($url['query'], $args);
+  }
+  else {
+    $args = array();
+  }
+  return array(
+    'name' => $url['path'],
+    'params' => $args,
+  );
+}
+
+/**
+ * Parse a string list of snippets delimited by linebreaks :
+ * my_object?test=3&param2=true
+ * another_object?test=3&param2=true
+ */
+function natools_parse_snippet_list($string) {
+  $lines = explode("\r\n", $string);
+  $snippets = array();
+  foreach ($lines as $line) {
+    // ignore line beginning with a '//' comment.
+    if (strpos(trim($line), '//') === 0) continue;
+    $snippets[] = natools_parse_snippet($line);
+  }
+  return $snippets;
+}
+

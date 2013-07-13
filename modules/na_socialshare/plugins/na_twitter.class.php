@@ -15,7 +15,7 @@
  */
 abstract class na_twitter extends na_socialshare {
 
-  static function help_url() {
+  function help_url() {
      return "https://dev.twitter.com/docs/tweet-button";
   }
 
@@ -31,8 +31,8 @@ abstract class na_twitter extends na_socialshare {
  */
 class na_twittershare extends na_twitter {
 
-  static function params_custom() {
-    return array();
+  function title() {
+    return 'Tweet button';
   }
 
   function html() {
@@ -46,7 +46,16 @@ class na_twittershare extends na_twitter {
  */
 class na_twitterfollow extends na_twitter {
 
-  static function params_custom() {
+  function __construct($params = array()) {
+    $params['account'] = isset($params['account']) ? $params['account'] : 'twitter';
+    parent::__construct($params);
+  }
+
+  function title() {
+    return 'Tweet Follow';
+  }
+
+  function params_custom() {
     return array(
       'account' => 'Required  : Machine name of twitter Account to follow. This will be used to construct url to this account.',
     );
@@ -63,7 +72,16 @@ class na_twitterfollow extends na_twitter {
  */
 class na_twitterhashtag extends na_twitter {
 
-  static function params_custom() {
+  function __construct($params = array()) {
+    $params['hashtag'] = isset($params['hashtag']) ? $params['hashtag'] : 'twitter';
+    parent::__construct($params);
+  }
+
+  function title() {
+    return "Twitter hastag";
+  }
+
+  function params_custom() {
     return array(
       'hashtag' => 'Required  : hashtag to show.',
     );

@@ -6,18 +6,17 @@
  * @see na_socialshare.class.php
  */
 
-
 /**
  * Googleplus Share implementation.
  */
 class na_googleplus extends na_socialshare {
 
-  static function help_url() {
-    return 'https://developers.google.com/+/plugins/+1button/#plusonetag-parameters';
+  function title() {
+    return "Google Plus";
   }
 
-  static function params_custom() {
-    return array();
+  function help_url() {
+    return 'https://developers.google.com/+/plugins/+1button/#plusonetag-parameters';
   }
 
   function script() {
