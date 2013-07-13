@@ -1,0 +1,9 @@
+<?php
+
+/**
+ * Implements hook_uninstall()
+ */
+function na_socialshare_uninstall() {
+  variable_del('na_socialshare_widgets');
+}
+

@@ -29,7 +29,7 @@ function natools_theme($existing, $type, $theme, $path) {
 }
 
 /*===========================
-  GLOBAL HELPERS FUNCTIONS
+  HELPERS 
   =========================== */
 
 /**
@@ -66,10 +66,6 @@ function natools_ajax_deliver_degradable($page_callback_result) {
     return drupal_deliver_html_page($page_callback_result);
   }
 }
-
-/*===========================
-   OTHER FUNCTIONS
-  =========================== */ 
 
 /**
  * implements hook_preprocess_hooks()
