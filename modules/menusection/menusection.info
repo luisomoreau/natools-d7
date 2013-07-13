@@ -1,0 +1,5 @@
+name = Menu Section
+description = Allow to edit a section only of a big menu.
+package = Natools
+dependencies[] = natools
+core = 7.x

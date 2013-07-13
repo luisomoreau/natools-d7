@@ -1,0 +1,222 @@
+<?php
+/**
+ * @file
+ *
+ * Allow users to edit et reorder only a section of one big menu.
+ * In this way, different roles may change only a part of a menu rather than
+ * having access to the whole structure.
+ *
+ * @TODO ui to create sections.
+ * @TODO access for those sections.
+ * @TODO performance : there must be a way not to load ALL the menu tree to
+ * create the menu-section form we want.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function menusection_theme() {
+  return array(
+    'menusection_overview_form' => array(
+      'render element' => 'form',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu()
+ */
+function menusection_menu() {
+  $items = array();
+  // admin/menu-section/{menu machine name}/{menu item mlid}
+  $items['admin/menu-section/%menu/%menu_link'] = array(
+    'title' => 'Customize menu',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('menusection_overview_form', 2, 3),
+    'title callback' => 'menu_overview_title',
+    'title arguments' => array(2),
+    'access arguments' => array('administer menu'),
+    'file' => 'menu.admin.inc',
+    'file path' => drupal_get_path('module', 'menu'), 
+  );
+  $items['node/%node/menu-section'] = array(
+    'title' => 'Reorder menu children',
+    'page callback' => 'menusection_node_tab',
+    'page arguments' => array(1),
+    'access arguments' => array('menusection_administer'),
+    'weight' => 4,
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'menu.admin.inc',
+    'file path' => drupal_get_path('module', 'menu'), 
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission()
+ */
+function menusection_permission() {
+  return array(
+    'menusection_administer' =>  array(
+      'title' => t('Administer menu sections'),
+      'description' => t('User may edit any defined menu sections.'),
+    ),
+  );
+}
+
+/**
+ * Thjis is a copy paste from drupal "menu_overview_form", with some tweaks to extract subsections.
+ * Form for editing an entire menu tree at once.
+ *
+ * Shows for one menu the menu links accessible to the current user and
+ * relevant operations.
+ *
+ * @param $menu
+ *   menu machine name.
+ * @param $level
+ *   Which level we want to display.
+ * @param $mlid
+ *   Which item from the selected level we want to display.
+ */
+function menusection_overview_form($form, &$form_state, $menu, $menu_link) {
+  global $menu_admin;
+
+  // use drupal native submit.
+  $form['#submit'][] = 'menu_overview_form_submit';
+
+  // save our loaded item object in a special variable that may be retrieved in our theme function.
+  $form['#menu_link'] = $menu_link;
+
+  $form['#attached']['css'] = array(drupal_get_path('module', 'menu') . '/menu.css');
+
+  $sql = "
+    SELECT m.load_functions, m.to_arg_functions, m.access_callback, m.access_arguments, m.page_callback, m.page_arguments, m.delivery_callback, m.title, m.title_callback, m.title_arguments, m.type, m.description, ml.*
+    FROM {menu_links} ml LEFT JOIN {menu_router} m ON m.path = ml.router_path
+    WHERE ml.menu_name = :menu 
+    ORDER BY p1 ASC, p2 ASC, p3 ASC, p4 ASC, p5 ASC, p6 ASC, p7 ASC, p8 ASC, p9 ASC";
+
+  $result = db_query($sql, array(':menu' => $menu['menu_name']), array('fetch' => PDO::FETCH_ASSOC));
+  $links = array();
+  foreach ($result as $item) {
+    $links[] = $item;
+  }
+
+  // get tree from the cache, then extract the part we want.
+  // Trying to retrieve only links we want by sql seems to cause troubles
+  // when build tree data.
+  // @TODO : find why form construction is incorrect when passing only right links with sql query.
+  $tree = menu_tree_data($links);
+  $tree = natools_menu_subtree_get($tree, $menu_link);
+
+  $node_links = array();
+  menu_tree_collect_node_links($tree, $node_links);
+  // We indicate that a menu administrator is running the menu access check.
+  $menu_admin = TRUE;
+  menu_tree_check_access($tree, $node_links);
+  $menu_admin = FALSE;
+
+
+  $form = array_merge($form, _menu_overview_tree_form($tree));
+  $form['#menu'] =  $menu;
+
+  if (element_children($form)) {
+    $form['actions'] = array('#type' => 'actions');
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save configuration'),
+    );
+  }
+  else {
+    $form['#empty_text'] = t('There are no menu links yet. <a href="@link">Add link</a>.', array('@link' => url('admin/structure/menu/manage/'. $form['#menu']['menu_name'] .'/add')));
+  }
+  return $form;
+}
+
+/**
+ * Returns HTML for the menu overview form into a table.
+ * This an exact copy of drupal theme_menu_overviw_form except
+ * that we correct theme('indentation') call; removing depth found in our url.
+ * We also unset first row (wihout breaking form), because we dont want to show parent in our menu section.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - form: A render element representing the form.
+ *
+ * @ingroup themeable
+ */
+function theme_menusection_overview_form($variables) {
+
+  $form = $variables['form'];
+
+  drupal_add_tabledrag('menu-overview', 'match', 'parent', 'menu-plid', 'menu-plid', 'menu-mlid', TRUE, MENU_MAX_DEPTH - 1);
+  drupal_add_tabledrag('menu-overview', 'order', 'sibling', 'menu-weight');
+
+  $header = array(
+    t('Menu link'),
+    array('data' => t('Enabled'), 'class' => array('checkbox')),
+    t('Weight'),
+    array('data' => t('Operations'), 'colspan' => '3'),
+  );
+
+  $rows = array();
+  foreach (element_children($form) as $mlid) {
+    if (isset($form[$mlid]['hidden'])) {
+      $element = &$form[$mlid];
+      // Build a list of operations.
+      $operations = array();
+      foreach (element_children($element['operations']) as $op) {
+        $operations[] = array('data' => drupal_render($element['operations'][$op]), 'class' => array('menu-operations'));
+      }
+      while (count($operations) < 2) {
+        $operations[] = '';
+      }
+
+      // Add special classes to be used for tabledrag.js.
+      $element['plid']['#attributes']['class'] = array('menu-plid');
+      $element['mlid']['#attributes']['class'] = array('menu-mlid');
+      $element['weight']['#attributes']['class'] = array('menu-weight');
+
+      // Change the parent field to a hidden. This allows any value but hides the field.
+      $element['plid']['#type'] = 'hidden';
+
+      $row = array();
+      // rf : adjust indentation looking at the depth of our parent menu item.
+      $row[] = theme('indentation', array('size' => $element['#item']['depth'] - 1 - $form['#menu_link']['depth'] )) . drupal_render($element['title']);
+      $row[] = array('data' => drupal_render($element['hidden']), 'class' => array('checkbox', 'menu-enabled'));
+      $row[] = drupal_render($element['weight']) . drupal_render($element['plid']) . drupal_render($element['mlid']);
+      $row = array_merge($row, $operations);
+
+      $row = array_merge(array('data' => $row), $element['#attributes']);
+      $row['class'][] = 'draggable';
+      $rows[] = $row;
+    }
+  }
+
+  $output = '';
+  if (empty($rows)) {
+    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
+  }
+
+  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'menu-overview')));
+  $output .= drupal_render_children($form);
+  return $output;
+}
+
+/**
+ * Page callback for node new local task to reorder children menu items.
+ */
+function menusection_node_tab($node) {
+
+  $path = "node/$node->nid";
+  $menu_name = RF_MENU_NAVIGATION;
+
+  $query = db_select('menu_links', 'ml');
+  $query->addField('ml','mlid');
+  $query->condition('ml.link_path', $path);
+  $query->condition('ml.menu_name', $menu_name);
+  $mlid = $query->execute()->fetchField();
+
+  $output = drupal_render(drupal_get_form('menusection_overview_form', menu_load($menu_name), menu_link_load($mlid)));
+  return $output;
+}
+
