@@ -5,6 +5,10 @@
  * Helpers functions and API for Drupal 7 sites.
  */
 
+/*****************
+ * HOOKS
+ *****************/
+
 /**
  * Implements hook_theme()
  */
@@ -24,6 +28,10 @@ function natools_theme($existing, $type, $theme, $path) {
   );
 }
 
+/*****************
+ * FIELDS
+ *****************/
+
 function natools_field_is_checked($entity_type, $entity, $field) {
   $is_checked = FALSE;
   if ($items = field_get_items($entity_type, $entity, $field)) {
@@ -34,9 +42,12 @@ function natools_field_is_checked($entity_type, $entity, $field) {
   return $is_checked;
 }
 
+/*****************
+ * MENU
+ *****************/
 
 /**
- * Get direct children menu items for a parent menu item.   *
+ * Get direct children menu items for a parent menu item.
  * This function is NOT recursive. Consider using drupal native
  * menu_build_tree() if you need more features.
  *
@@ -176,31 +187,6 @@ function natools_menu_node_children_get($nid) {
 
 }
 
-/**
- * to use as a "delivery callack" in a hook menu. This is something like "ajax_deliver"
- * from Drupal 7, without all php framework ajax stuff behind. As ajax_deliver, it offers
- * a way to know if page is requested by ajax or not.
- *
- * If js is not enabled, a normal drupal page will be displayed, fully loading blocks etc...
- * If ajax sent us a "http_request_sent_by_ajax' variable, we return only result of our menu callback
- * function, bypassing all drupal page system with all the blocks and heavy stuff.
- *
- * Use it typically when you want to write custom js to display (for example) a popup in ajax; rather than using 
- * drupal 7 ajax API.
- * 
- * To let us know if ajax is enabled, this is *developper* responsability to send
- * a GET $param called "http_request_sent_by_ajax" with value "1"..
- */
-function natools_ajax_deliver_degradable($page_callback_result) {
-  if (isset($_REQUEST['http_request_sent_by_ajax']) && $_REQUEST['http_request_sent_by_ajax'] == 1) {
-    drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
-    print render($page_callback_result);
-    drupal_exit();
-  }
-  else {
-    return drupal_deliver_html_page($page_callback_result);
-  }
-}
 
 /**
  * implements hook_preprocess_hooks()
@@ -257,6 +243,10 @@ function theme_natools_views_embed($vars) {
   return $out;
 }
 
+/*******************
+ * MODX-LIKE CONFIG 
+ ********************/
+
 /**
  * A snippet is a string of the form "myobject?test=3&param2=true"
  */
@@ -290,6 +280,9 @@ function natools_parse_snippet_list($string) {
   return $snippets;
 }
 
+/*****************
+ * TAXONOMY 
+ *****************/
 
 /**
  * Return nodes associated to tids. This is mainly a copy paste of native drupal
@@ -416,5 +409,35 @@ function natools_taxonomy_breadcrumb_set($tid, $title_add = TRUE) {
   $breadcrumb[] = l(t('Home'), NULL);
   $breadcrumb = array_reverse($breadcrumb);
   drupal_set_breadcrumb($breadcrumb);
+}
+
+/*****************
+ * OTHERS 
+ *****************/
+
+/**
+ * to use as a "delivery callack" in a hook menu. This is something like "ajax_deliver"
+ * from Drupal 7, without all php framework ajax stuff behind. As ajax_deliver, it offers
+ * a way to know if page is requested by ajax or not.
+ *
+ * If js is not enabled, a normal drupal page will be displayed, fully loading blocks etc...
+ * If ajax sent us a "http_request_sent_by_ajax' variable, we return only result of our menu callback
+ * function, bypassing all drupal page system with all the blocks and heavy stuff.
+ *
+ * Use it typically when you want to write custom js to display (for example) a popup in ajax; rather than using 
+ * drupal 7 ajax API.
+ * 
+ * To let us know if ajax is enabled, this is *developper* responsability to send
+ * a GET $param called "http_request_sent_by_ajax" with value "1"..
+ */
+function natools_ajax_deliver_degradable($page_callback_result) {
+  if (isset($_REQUEST['http_request_sent_by_ajax']) && $_REQUEST['http_request_sent_by_ajax'] == 1) {
+    drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
+    print render($page_callback_result);
+    drupal_exit();
+  }
+  else {
+    return drupal_deliver_html_page($page_callback_result);
+  }
 }
 
