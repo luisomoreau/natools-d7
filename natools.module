@@ -214,6 +214,33 @@ function natools_menu_node_children_get($nid) {
 
 }
 
+/***************
+ * FILES
+ **************/
+
+/**
+ * Page callback for forcing a file to download.
+ *
+ * Create a menu item like this one to use :
+ * $items['download/%file'] = array(
+ *   'page callback' => 'natools_file_force_download',
+ *   'page arguments' => array(1),
+ *   'access arguments' => array('access content'),
+ *   'type' => MENU_CALLBACK,
+ * );
+ */
+function natools_file_force_download($file) {  
+  if($file) {    
+    $headers = array('Content-Type' => 'application/octet-stream',
+      'Content-Disposition' => 'attachment; filename="' . $file->filename . '"',
+      'Content-Length' => $file->filesize);
+    file_transfer($file->uri, $headers);
+  }
+  else {
+    return drupal_access_denied();
+  }
+}
+
 /**
  * Display an embedded view, *only* if it has some results. May display views title or
  * a custom title. Html tags and title classes may be customized.
@@ -282,6 +309,23 @@ function natools_parse_snippet_list($string) {
 /*****************
  * TAXONOMY 
  *****************/
+
+/**
+ * Get depth of a taxonomy term.
+ * Pasted from https://drupal.org/node/886526
+ * 
+ * We use this in block visibility, this allow us to display different blocks
+ * for taxonomy/term/xx pages according to the term depth.
+ */
+function natools_taxonomy_get_term_depth($tid) {
+  if (!is_numeric($tid)) return false;
+  $parent = db_query("SELECT parent FROM {taxonomy_term_hierarchy} WHERE tid = :tid", array(':tid' => $tid))->fetchField();
+  if($parent == 0) {
+    return 1;
+  }else  {
+    return 1+natools_taxonomy_get_term_depth($parent);
+  }
+}
 
 /**
  * Return nodes associated to tids. This is mainly a copy paste of native drupal
@@ -408,6 +452,59 @@ function natools_taxonomy_breadcrumb_set($tid, $title_add = TRUE) {
   $breadcrumb[] = l(t('Home'), NULL);
   $breadcrumb = array_reverse($breadcrumb);
   drupal_set_breadcrumb($breadcrumb);
+}
+
+/*****************
+ * Users
+ ****************/
+
+/**
+ * Redirect user to url of our choice on login.
+ *
+ * @code
+ * function hook_user_login(&$edit, $account) {
+ *    natools_user_login_redirect($account, 'admin');
+ *  }
+ * @endcode
+ */
+function natools_user_login_redirect($account, $destination) {
+  // Do not redirect if the user is trying to reset his password.
+  if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset') {
+    //if (in_array(ROLE_WEBMASTER, array_keys($account->roles))) {
+    $_GET['destination'] = $destination;
+    //} 
+  }
+
+}
+
+/*****************
+ * Blocks
+ ****************/
+
+/**
+ * Get a blocks list
+ */
+function natools_blocks_get($conditions = array()) {
+
+  //$query = db_select('block_custom', 'bc');
+  $query = db_select('block', 'b');
+  $query->join('block_custom', 'bc', 'bc.bid = b.delta');
+
+  $query->fields('bc');
+  $query->fields('b');
+
+  foreach ($conditions as $condition => $value) {
+    $query->condition($condition, $value);
+  }
+
+  $query->orderBy('weight', 'ASC');
+
+  $result = $query->execute();
+  $blocks = array();
+  foreach ($result as $row) {
+    $blocks[] = (array)$row;
+  }
+  return $blocks;
 }
 
 /*****************
