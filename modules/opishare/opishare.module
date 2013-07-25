@@ -1,8 +1,7 @@
 <?php
 /**
  * @file
- *
- * Opishare : social links in popup
+ * Opishare : social share links in popup
  */
 
 /**
@@ -46,23 +45,22 @@ function opishare_block_info() {
   return array('opishare_links' => array('info' => t('Opi share')));
 }
 
-function opishare_get_renderable_array() {
-  return array(
-    '#prefix' => '<div class="social-share">',
-    '#suffix' => '</div>',
-    '#theme' => 'links',
-    '#links' => $links,
-    '#attributes' => array('class' => array('social-share-links')),
-    '#attached' => array('js' => array('data' => drupal_get_path('module', 'opishare') . '/opishare.js')),
-  );
-}
-
 /**
  * Implements hook_block_view();
  */
 function opishare_block_view($delta) {
   if ($delta == 'opishare_links') {    
-    return array('subject' => 'Opishare', 'content' => opishare_get_renderable_array());
+    return array(
+      'subject' => 'Opishare', 
+      'content' => array(
+        '#prefix' => '<div class="social-share">',
+        '#suffix' => '</div>',
+        '#theme' => 'links',
+        '#links' => module_invoke_all('opishare_links_info', url(current_path(), array('absolute' => TRUE))),
+        '#attributes' => array('class' => array('social-share-links')),
+        '#attached' => array('js' => array('data' => drupal_get_path('module', 'opishare') . '/opishare.js')),
+      )
+    );
   }
 }
 
