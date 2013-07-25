@@ -1,0 +1,4 @@
+name = "Opishare"
+description = "Social share"
+core = 7.x
+package = Natools

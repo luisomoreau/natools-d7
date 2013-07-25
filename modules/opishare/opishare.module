@@ -1,0 +1,68 @@
+<?php
+/**
+ * @file
+ *
+ * Opishare : social links in popup
+ */
+
+/**
+ * Implements hook_opishare_links_info()
+ */
+function opishare_opishare_links_info($share_url =  '') {
+  $links = array();
+  $links['facebook'] = array(
+    'href' => 'https://www.facebook.com/sharer/sharer.php?u='.$share_url,
+    'title' => t("Facebook"),
+    'attributes' => array(
+      'data-popup-width' => 700,
+      'data-popup-height' => 300,
+    ),
+  );
+  $links['twitter'] = array(
+    'href' => 'https://twitter.com/intent/tweet?text='.$share_url,
+    'title' => t("Twitter"),
+    'attributes' => array(
+      'data-popup-width' => 550,
+      'data-popup-height' => 220,
+    ),
+  );
+  $links['googleplus'] = array(
+    'href' => 'https://plus.google.com/share?url='.$share_url,
+    'title' => t("Google+"),
+    'attributes' => array(
+      'data-popup-width' => 600,
+      'data-popup-height' => 330,
+    ),
+  );
+  drupal_alter('opishare_links', $links);
+  return $links;
+}
+
+
+/**
+ * Implements hook_block_info()
+ */
+function opishare_block_info() {
+  return array('opishare_links' => array('info' => t('Opi share')));
+}
+
+function opishare_get_renderable_array() {
+  return array(
+    '#prefix' => '<div class="social-share">',
+    '#suffix' => '</div>',
+    '#theme' => 'links',
+    '#links' => $links,
+    '#attributes' => array('class' => array('social-share-links')),
+    '#attached' => array('js' => array('data' => drupal_get_path('module', 'opishare') . '/opishare.js')),
+  );
+}
+
+/**
+ * Implements hook_block_view();
+ */
+function opishare_block_view($delta) {
+  if ($delta == 'opishare_links') {    
+    return array('subject' => 'Opishare', 'content' => opishare_get_renderable_array());
+  }
+}
+
