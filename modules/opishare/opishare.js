@@ -4,9 +4,6 @@
 
     attach: function (context, settings) {
 
-      // test :
-      //$('#main').hide();
-
       $(".social-share-links a").click(function(e){
         e.preventDefault();
         var h = $(this).attr("data-popup-height"),
