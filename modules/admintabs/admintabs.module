@@ -53,14 +53,15 @@ function admintabs_generate_tabs() {
       $items[$path]['page callback'] = 'admintabs_menu_callback_empty_page';
       $items[$path]['weight'] = $i;
 
-      // handle custom "redirect" key. Settings this key to an internal drupal
-      // path allow to redirect user to url of your choice when clicking on tab. 
-      if (!empty($tab['redirect'])) {
-        $items[$path]['page callback'] = 'admintabs_menu_callback_redirect';
-        $items[$path]['page arguments'] = array($path, $item);
-      }
       // merge all keys. Override default keys at your own risks in your hook_admintabs_info().
       $items[$path] = array_merge($items[$path], $item);
+
+      // plugins modifications.
+      $plugins = module_invoke_all('admintabs_plugins');
+      foreach($plugins as $function) {
+        $function($items, $path);
+      }
+
     }
     $i++;
   }
@@ -133,25 +134,6 @@ function admintabs_menu_callback_parent_tab($items) {
   }
 }
 
-/**
- * Page callback that perform a redirection to specified path. Trying to avoid
- * infinite redirections...
- */
-function admintabs_menu_callback_redirect($path, $item) {
-  $destination = array();
-  // dev may set a "destination" key to force destination path for a particular menu item.
-  if (isset($item['destination']) && $item['destination'] != $path) {
-    $destination = array('destination' => $item['destination']);
-  }
-  else {
-    if ($db_item = menu_get_item($path)) {
-      $destination = array('destination' => $db_item['tab_parent']);
-    }
-  }
-
-  //drupal_goto($item['redirect'], array('query' => $destination));
-
-}
 
 /**
  * Our menu callback access for all tabs : we allow to access a tab :
@@ -178,6 +160,7 @@ function admintabs_tab_router($items) {
   // by default, set first tab as default active tab.
   $default_tab = array_slice(array_keys($items), 1, 1);
 
+  // @FIXME does not work anymore, since full rewriting
   // if a default tab key has been defined, redirect user according to its role.
   // if its role is not found in this array, it will be redirect to $default_tab set above.
   if (isset($tabset['#default tab'])) {
@@ -190,6 +173,7 @@ function admintabs_tab_router($items) {
     }
   }
 
+  // broken ...
   //drupal_goto($default_tab);
 
 }
@@ -215,5 +199,68 @@ function admintabs_tabset_permission_name_get($full_path) {
 function theme_admintabs_login_form($variables) {
   $form = drupal_get_form('user_login');
   return drupal_render($form); 
+}
+
+/**
+ * Implements hook_admintabs_plugins()
+ */
+function admintabs_admintabs_plugins() {
+  return array(
+    'admintabs_plugin_redirect',
+    'admintabs_plugin_blocks',
+  );
+}
+
+/*****************************************
+ * PLUGINS
+ * extends admintabs possibilities
+ ******************************************/
+
+/**
+ * Handle tab or links that are a redirection to somewhere else
+ * (for ex : node/add/your-type)
+ */
+function admintabs_plugin_redirect(&$items, $path) {
+  if (!empty($items[$path]['redirect'])) {
+    $items[$path]['page callback'] = 'admintabs_menu_callback_plugin_redirect';
+    $items[$path]['page arguments'] = array($path, $items);
+  }
+}
+
+/**
+ * Page callback that perform a redirection to specified path. Trying to avoid infinite redirections...
+ */
+function admintabs_menu_callback_plugin_redirect($path, $items) {
+  if (empty($items[$path]['redirect'])) return;
+  $item = $items[$path];
+  $destination = array();
+  // dev may set a "destination" key to force destination path for a particular menu item.
+  if (isset($item['destination']) && $item['destination'] != $path) {
+    $destination = array('destination' => $item['destination']);
+  }
+  elseif ($db_item = menu_get_item($path)) {
+    $destination = array('destination' => $db_item['tab_parent']);
+  }
+  drupal_goto($item['redirect'], array('query' => $destination));
+}
+
+/**
+ * Allow to add block programmatically on a particular tab. For deployment purposes.
+ */
+function admintabs_plugin_blocks(&$items, $path) {
+  if (!empty($items[$path]['blocks'])) {
+    $items[$path]['page callback'] = 'admintabs_menu_callback_plugin_blocks';
+    $items[$path]['page arguments'] = array($items[$path]);
+  }
+}
+
+function admintabs_menu_callback_plugin_blocks($item) {
+   $out = '';
+   foreach ($item['blocks'] as $datas) {
+     // render block this way, we make sure contextual links will be rendered with the block.
+     $block = block_load($datas['module'], $datas['delta']);
+     $out .= drupal_render(_block_get_renderable_array(_block_render_blocks(array($block))));
+   }
+   return $out;
 }
 
