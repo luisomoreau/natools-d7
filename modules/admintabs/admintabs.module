@@ -15,16 +15,14 @@
  * invocation of hook_admintabs_info()
  */
 function admintabs_menu() {
-  $items = array();
-  _admintabs_menu_generate($items);
-  return $items;
+  return _admintabs_menu_items_generate();
 }
 
 /**
  * Generate hook menu items based on infos returned by
  * invocation of hook_admintabs_info().
  */
-function _admintabs_menu_generate(&$items) {
+function _admintabs_menu_items_generate() {
 
   // get all tabsets defined by module. If no tabsets founds, abort.
   if (!$tabsets = admintabs_get_tabsets()) return; 
@@ -46,12 +44,9 @@ function _admintabs_menu_generate(&$items) {
     // merge all others keys coming from tabset, if any. Overrides default parameters at your own risks.
     $items[$tabset_path] = array_merge($items[$tabset_path], $tabset);
     
-    // find default tab for this tabset.
-    $defaut_tab_path = admintabs_get_default_tab_path($tabset);
-
     // now attach local tasks to this parent menu item.
     $i = 1;
-    foreach ($tabset['tabs'] as $tab_path => $tab) {
+    foreach ($tabset['#tabs'] as $tab_path => $tab) {
 
       $path = "$tabset_path/$tab_path";
 
@@ -78,7 +73,7 @@ function _admintabs_menu_generate(&$items) {
     }
 
   }
-
+  return $items;
 }
 
 /**
@@ -97,17 +92,17 @@ function admintabs_permission() {
     // create a global permissions for all tabs of a specific tabset
     $permission_name = admintabs_tabset_permission_name_create($tabset_path);
     $permissions[$permission_name] = array(
-      'title' => t('Access all tabs from ' . $tabset['title']),
+      'title' => t('Access all tabs from ' . $tabset['#title']),
       'description' => "machine name :  $permission_name",
     );
 
     // now create automaticcally a permission for each tab.
-    foreach ($tabset['tabs'] as $path => $tab) {
+    foreach ($tabset['#tabs'] as $path => $tab) {
       // do nothing if this tab is a "redirection" to anothe drupal page. 
       if (!empty($tab['redirect'])) continue;
       $permission_name = admintabs_tab_permission_name_create($tabset_path . '/' . $path);
       $permissions[$permission_name] = array(
-        'title' => t('Access tab for ' . $tab['title'] . ' page.'),
+        'title' => t('Access tab for ' . $tab['#title'] . ' page.'),
         'description' => 'machine name : ' . admintabs_tab_permission_name_create($tabset_path . '/' . $path)
       );
     }
@@ -197,20 +192,24 @@ function admintabs_get_tabsets() {
  */
 function admintabs_tab_router($tabset_path, $tabset) {
   global $user;
-  if (empty($tabset['default tab'])) return;
-  
-  $redirections = $tabset['default tab'];
-  if(!empty($redirections['all'])) {
-    $path = $tabset_path . '/' . $redirections['all'];
-    drupal_goto($path);
-  }
-  else {
+
+  // by default, set first tab as default active tab.
+  $default_tab = $tabset_path .'/'. reset(array_keys($tabset['#tabs']));
+
+  // if a default tab key has been defined, redirect user according to its role.
+  // if its role is not found in this array, it will be redirect to $default_tab set above.
+  if (isset($tabset['#default tab'])) {
+    // redirect to first role found, may cause some surprises for user having multiple roles...
     foreach ($redirections as $rid => $tab_path) {
       if (in_array($rid, array_keys($user->roles))) {
-        drupal_goto($tabset_path . '/' . $redirections[$rid]);
+        $default_tab = $tabset_path . '/' . $redirections[$rid];
+        break;
       }
     }
   }
+
+  drupal_goto($default_tab);
+
 }
 
 /**
@@ -234,17 +233,5 @@ function admintabs_tabset_permission_name_create($full_path) {
 function theme_admintabs_login_form($variables) {
   $form = drupal_get_form('user_login');
   return drupal_render($form); 
-}
-
-/**
- * Return default tab path. If no default tab is defined in invoked hook,
- * return first tab path found.
- */
-function admintabs_get_default_tab_path($tabset) {
-  foreach ($tabset['tabs'] as $path => $tab) {
-    if (!empty($tab['default'])) return $path;
-  }
-  $keys = array_keys($tabset['tabs']);
-  return reset($keys);
 }
 
