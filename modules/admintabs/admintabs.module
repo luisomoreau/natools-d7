@@ -4,10 +4,6 @@
  * admintabs module. See admintabs.php for some documentation.
  */
 
-/************************
- * HOOKS
- ************************/
-
 /**
  * Implements hook_menu()
  *
@@ -15,47 +11,44 @@
  * invocation of hook_admintabs_info()
  */
 function admintabs_menu() {
-  return _admintabs_menu_items_generate();
+  return admintabs_generate_tabs();
 }
 
 /**
  * Generate hook menu items based on infos returned by
  * invocation of hook_admintabs_info().
+ * This is the heart of this module.
  */
-function _admintabs_menu_items_generate() {
+function admintabs_generate_tabs() {
 
-  // get all tabsets defined by module. If no tabsets founds, abort.
-  if (!$tabsets = admintabs_get_tabsets()) return; 
+  $items = admintabs_get_tabs(); 
 
-  // let other modules alter defined tabsets.
-  drupal_alter('admintabs_tabsets', $tabsets);
-  
-  foreach ($tabsets as $tabset_path => $tabset) {
-
-    // first build parent menu item.
-    $items[$tabset_path] = array(
-      'access arguments' => array('access content'),
-      'type' => MENU_CALLBACK,
-      // this callback will be automatically called by tab defined as MENU_DEFAULT_LOCAL_TASK
-      // This is a drupal behavior.
-      'page callback'  => 'admintabs_menu_callback_parent_tab',
-      'page arguments' => array($tabset_path, $tabset),
-    );
-    // merge all others keys coming from tabset, if any. Overrides default parameters at your own risks.
-    $items[$tabset_path] = array_merge($items[$tabset_path], $tabset);
+  $i = 1;
+  foreach ($items as $path => $item) {
     
-    // now attach local tasks to this parent menu item.
-    $i = 1;
-    foreach ($tabset['#tabs'] as $tab_path => $tab) {
-
-      $path = "$tabset_path/$tab_path";
-
+    // create parent menu item for our tabs.
+    if ($i == 1) {
+      $items[$path] = array(
+        'type' => MENU_CALLBACK,
+        'access arguments' => array('access content'),
+        'path' => $path, // internal use.
+        'page callback'  => 'admintabs_menu_callback_parent_tab',
+        'page arguments' => array($items),
+      );
+      // merge but without overriding what we just defined.
+      $items[$path] = array_merge($item, $items[$path]);
+      $root_item = $items[$path];
+    }
+    else {
       // set default parameters to create classic and working drupal tabs.
       // There is no MENU_DEFAULT_LOCAL_TASK because we use parent menu item page callback
       // to decide where user should land, according to its role.
       $items[$path]['type'] =  MENU_LOCAL_TASK;
       // user can access a tab if he has permission for this tabs OR permission for whole tabset.
-      $items[$path]['access arguments'] = array(admintabs_tab_permission_name_create($path), admintabs_tabset_permission_name_create($tabset_path));
+      $items[$path]['access arguments'] = array(
+        admintabs_tab_permission_name_get($path), 
+        admintabs_tabset_permission_name_get($root_item['path']),
+      );
       $items[$path]['access callback'] = 'admintabs_menu_access_callback';
       $items[$path]['page callback'] = 'admintabs_menu_callback_empty_page';
       $items[$path]['weight'] = $i;
@@ -63,15 +56,13 @@ function _admintabs_menu_items_generate() {
       // handle custom "redirect" key. Settings this key to an internal drupal
       // path allow to redirect user to url of your choice when clicking on tab. 
       if (!empty($tab['redirect'])) {
-         $items[$path]['page callback'] = 'admintabs_menu_callback_redirect';
-         $items[$path]['page arguments'] = array($tabset_path, $tabset, $tab_path, $tab);
+        $items[$path]['page callback'] = 'admintabs_menu_callback_redirect';
+        $items[$path]['page arguments'] = array($path, $item);
       }
-
-      // merge all others keys comming from tabs. Overrides default parameters at your own risks.
-      $items[$path] = array_merge($items[$path], $tab);
-      $i++;
+      // merge all keys. Override default keys at your own risks in your hook_admintabs_info().
+      $items[$path] = array_merge($items[$path], $item);
     }
-
+    $i++;
   }
   return $items;
 }
@@ -79,33 +70,29 @@ function _admintabs_menu_items_generate() {
 /**
  * hook_permission()
  * 
- * automatically generate a permission for each tabs
- * and a global permission for all tabs from a tabset.
+ * automatically generate a permission for each tab
+ * and a global permission for all tabs.
  */
 function admintabs_permission() {
   $permissions = array();
-
-  // create automaticaly one permissions per tab.
-  $tabsets = admintabs_get_tabsets();
-  foreach ($tabsets as $tabset_path => $tabset) {
-
-    // create a global permissions for all tabs of a specific tabset
-    $permission_name = admintabs_tabset_permission_name_create($tabset_path);
-    $permissions[$permission_name] = array(
-      'title' => t('Access all tabs from ' . $tabset['#title']),
-      'description' => "machine name :  $permission_name",
-    );
-
-    // now create automaticcally a permission for each tab.
-    foreach ($tabset['#tabs'] as $path => $tab) {
-      // do nothing if this tab is a "redirection" to anothe drupal page. 
-      if (!empty($tab['redirect'])) continue;
-      $permission_name = admintabs_tab_permission_name_create($tabset_path . '/' . $path);
+  $items = admintabs_get_tabs();
+  $i = 1;
+  foreach ($items as $path => $item) {
+    if ($i == 1) {
+      $permission_name = admintabs_tabset_permission_name_get($path);
       $permissions[$permission_name] = array(
-        'title' => t('Access tab for ' . $tab['#title'] . ' page.'),
-        'description' => 'machine name : ' . admintabs_tab_permission_name_create($tabset_path . '/' . $path)
+        'title' => t('Access all tabs from ' . $item['title']),
+        'description' => "machine name :  $permission_name",
       );
     }
+    else {
+      $permission_name = admintabs_tab_permission_name_get($path);
+      $permissions[$permission_name] = array(
+        'title' => t('Access ' . $item['title'] . ' tab.'),
+        'description' => 'machine name : ' . $permission_name, 
+      );
+    }
+    $i++;
   }
   return $permissions;
 }
@@ -118,10 +105,6 @@ function admintabs_theme($existing, $type, $theme, $path) {
     'admintabs_login_form' => array('variables' => array()),
   );
 }
-
-/***********************
- * Menu callbacks
- **********************/
 
 /**
  * Default page callback for our tabs menu items. Return nothing,
@@ -136,10 +119,10 @@ function admintabs_menu_callback_empty_page() {
  * Route user to a specific tab or display a login form if he is
  * not logged in.
  */
-function admintabs_menu_callback_parent_tab($tabset_path, $tabset) {
+function admintabs_menu_callback_parent_tab($items) {
   global $user;
   if ($user->uid) {
-    admintabs_tab_router($tabset_path, $tabset);
+    admintabs_tab_router($items);
     return '';
   }
   else {
@@ -151,20 +134,20 @@ function admintabs_menu_callback_parent_tab($tabset_path, $tabset) {
  * Page callback that perform a redirection to specified path. Trying to avoid
  * infinite redirections...
  */
-function admintabs_menu_callback_redirect($tabset_path, $tabset_set, $tab_path, $tab) {
-
+function admintabs_menu_callback_redirect($path, $item) {
   $destination = array();
-  if (isset($tab['destination']) && $tab['destination'] != $tabset_path . '/' . $tab_path) {
-    $destination = array('destination' => $tab['destination']);
+  // dev may set a "destination" key to force destination path for a particular menu item.
+  if (isset($item['destination']) && $item['destination'] != $path) {
+    $destination = array('destination' => $item['destination']);
   }
   else {
-    if ($item = menu_get_item($tabset_path . '/' . $tab_path)) {
-      $destination = array('destination' => $item['tab_parent']);
+    if ($db_item = menu_get_item($path)) {
+      $destination = array('destination' => $db_item['tab_parent']);
     }
   }
-  
-  drupal_goto($tab['redirect'], array('query' => $destination));
-  
+
+  //drupal_goto($item['redirect'], array('query' => $destination));
+
 }
 
 /**
@@ -176,25 +159,21 @@ function admintabs_menu_access_callback($permission_tab, $permission_tabset) {
   return user_access($permission_tab) || user_access($permission_tabset) ? TRUE : FALSE;
 }
 
-/********************
- * Helpers functions
- ********************/
-
 /**
  * For now, simply return hooks. 
  */
-function admintabs_get_tabsets() {
+function admintabs_get_tabs() {
   return module_invoke_all('admintabs_info');
 }
 
 /**
  * redirect user to the right tab given its role.
  */
-function admintabs_tab_router($tabset_path, $tabset) {
+function admintabs_tab_router($items) {
   global $user;
 
   // by default, set first tab as default active tab.
-  $default_tab = $tabset_path .'/'. reset(array_keys($tabset['#tabs']));
+  $default_tab = array_slice(array_keys($items), 1, 1);
 
   // if a default tab key has been defined, redirect user according to its role.
   // if its role is not found in this array, it will be redirect to $default_tab set above.
@@ -208,7 +187,7 @@ function admintabs_tab_router($tabset_path, $tabset) {
     }
   }
 
-  drupal_goto($default_tab);
+  //drupal_goto($default_tab);
 
 }
 
@@ -216,15 +195,15 @@ function admintabs_tab_router($tabset_path, $tabset) {
  * Generate a permission machine name for a tab using *full path* of a tab
  * (e.g admin/dashboard/ma_tab)
  */
-function admintabs_tab_permission_name_create($full_path) {
-  return "access tabs api tab $full_path";
+function admintabs_tab_permission_name_get($full_path) {
+  return "access tab $full_path";
 }
 
 /**
  * Generate a permission machine name for all tabs for a specifif tabset.
  */
-function admintabs_tabset_permission_name_create($full_path) {
-  return "access tabs api all tabs from tabset $full_path";
+function admintabs_tabset_permission_name_get($full_path) {
+  return "access all tabs under $full_path";
 }
 
 /**
