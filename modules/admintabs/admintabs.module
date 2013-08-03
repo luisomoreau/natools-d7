@@ -111,6 +111,9 @@ function admintabs_theme($existing, $type, $theme, $path) {
  * thoses pages may be filled by block.
  */
 function admintabs_menu_callback_empty_page() {
+  // by default, drupal only display parent tab title. Use tab title prefixed by parent tab title instead.
+  $item = menu_get_item();
+  drupal_set_title(drupal_get_title() . ' : ' . $item['title']);
   return '';
 }
 
